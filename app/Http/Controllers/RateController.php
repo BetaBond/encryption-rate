@@ -63,7 +63,7 @@ class RateController
         $tokenRate = $response['tick']['close'];
         
         $response = Http::get(self::LEGAL_TENDER_API, [
-            'fromCode' => $requestParams['currency'],
+            'fromCode' => strtoupper($requestParams['currency']),
             'toCode'   => 'USD',
         ]);
         
@@ -77,9 +77,8 @@ class RateController
         $response = (array) $response;
         
         if ($response['code'] !== 0) {
-            dd($response);
             return Preacher::msgCode(
-                '81',
+                $response['msg'],
                 Preacher::RESP_CODE_FAIL
             )->export()->json();
         }
