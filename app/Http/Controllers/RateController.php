@@ -84,7 +84,7 @@ class RateController
         }
         
         $currencyRate = $response['data']['rate'];
-        $rate = $tokenRate / $currencyRate;
+        $rate = $tokenRate * $currencyRate;
         
         return Preacher::receipt((object) [
             'rate'     => $rate,
