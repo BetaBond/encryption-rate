@@ -74,7 +74,7 @@ class RateController
         $response = $response->json();
         $response = (array) $response;
         
-        if ($response['status'] !== 0) {
+        if ($response['code'] !== 0) {
             return Preacher::code(
                 Preacher::RESP_CODE_FAIL
             )->export()->json();
