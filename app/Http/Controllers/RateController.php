@@ -39,28 +39,31 @@ class RateController
             'currency' => ['required', 'string'],
         ]);
         
-        $response = Http::get(self::HUOBI_API, [
-            'symbol' => $requestParams['token'].'usdt',
-        ]);
-        
-        if (!is_array($response->json())) {
-            return Preacher::msgCode(
-                '48',
-                Preacher::RESP_CODE_FAIL
-            )->export()->json();
+        $tokenRate = 1;
+        if ($requestParams['token'] !== 'usdt') {
+            $response = Http::get(self::HUOBI_API, [
+                'symbol' => $requestParams['token'].'usdt',
+            ]);
+            
+            if (!is_array($response->json())) {
+                return Preacher::msgCode(
+                    '48',
+                    Preacher::RESP_CODE_FAIL
+                )->export()->json();
+            }
+            
+            $response = $response->json();
+            $response = (array) $response;
+            
+            if (!isset($response['status']) || $response['status'] !== 'ok') {
+                return Preacher::msgCode(
+                    '58',
+                    Preacher::RESP_CODE_FAIL
+                )->export()->json();
+            }
+            
+            $tokenRate = $response['tick']['close'];
         }
-        
-        $response = $response->json();
-        $response = (array) $response;
-        
-        if (!isset($response['status']) || $response['status'] !== 'ok') {
-            return Preacher::msgCode(
-                '58',
-                Preacher::RESP_CODE_FAIL
-            )->export()->json();
-        }
-        
-        $tokenRate = $response['tick']['close'];
         
         $response = Http::get(self::LEGAL_TENDER_API, [
             'fromCode' => strtoupper($requestParams['currency']),
