@@ -77,6 +77,7 @@ class RateController
         $response = (array) $response;
         
         if ($response['code'] !== 0) {
+            dd($response);
             return Preacher::msgCode(
                 '81',
                 Preacher::RESP_CODE_FAIL
