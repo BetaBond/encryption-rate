@@ -70,9 +70,10 @@ class RateController
         $requestParams['currency'] = strtoupper($requestParams['currency']);
         $currencyKey = $requestParams['currency'].'/USD';
         
+        $currencyCache = null;
+        
         try {
             $has = Cache::store('redis')->has($currencyKey);
-            $currencyRate = (float)Cache::store('redis')->get($currencyKey);
         } catch (InvalidArgumentException $e) {
             return Preacher::msgCode(
                 Preacher::RESP_CODE_FAIL,
@@ -109,17 +110,30 @@ class RateController
             }
             
             $currencyRate = $response['rates'][$requestParams['currency']];
+            
+            $currencyCache = Cache::store(
+                'redis'
+            )->put(
+                $currencyKey,
+                $currencyRate,
+                30
+            );
+        }
+        
+        if ($has) {
+            try {
+                $currencyRate = (float) Cache::store(
+                    'redis'
+                )->get($currencyKey);
+            } catch (InvalidArgumentException $e) {
+                return Preacher::msgCode(
+                    Preacher::RESP_CODE_FAIL,
+                    $e->getMessage(),
+                )->export()->json();
+            }
         }
         
         $rate = $tokenRate * $currencyRate;
-        
-        $currencyCache = Cache::store(
-            'redis'
-        )->put(
-            $currencyKey,
-            $currencyRate,
-            30
-        );
         
         return Preacher::receipt((object) [
             'rate'     => $rate,
