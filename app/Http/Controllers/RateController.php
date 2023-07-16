@@ -71,8 +71,9 @@ class RateController
         ]);
         
         if (!is_array($response->json())) {
-            return Preacher::code(
-                Preacher::RESP_CODE_FAIL
+            return Preacher::msgCode(
+                Preacher::RESP_CODE_FAIL,
+                '76'
             )->export()->json();
         }
         
