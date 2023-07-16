@@ -72,6 +72,7 @@ class RateController
         
         try {
             $has = Cache::store('redis')->has($currencyKey);
+            $currencyRate = (float)Cache::store('redis')->get($currencyKey);
         } catch (InvalidArgumentException $e) {
             return Preacher::msgCode(
                 Preacher::RESP_CODE_FAIL,
@@ -79,39 +80,54 @@ class RateController
             )->export()->json();
         }
         
-        $response = Http::get(self::LEGAL_TENDER_API);
-        
-        if (!is_array($response->json())) {
-            return Preacher::msgCode(
-                Preacher::RESP_CODE_FAIL,
-                '汇率接口异常'
-            )->export()->json();
+        // 不存在则请求
+        if (!$has) {
+            $response = Http::get(self::LEGAL_TENDER_API);
+            
+            if (!is_array($response->json())) {
+                return Preacher::msgCode(
+                    Preacher::RESP_CODE_FAIL,
+                    '汇率接口异常'
+                )->export()->json();
+            }
+            
+            $response = $response->json();
+            $response = (array) $response;
+            
+            if (!is_array($response['rates'])) {
+                return Preacher::msgCode(
+                    Preacher::RESP_CODE_FAIL,
+                    '汇率接口数据异常'
+                )->export()->json();
+            }
+            
+            if (!isset($requestParams['currency'])) {
+                return Preacher::msgCode(
+                    Preacher::RESP_CODE_FAIL,
+                    '法币错误或不存在'
+                )->export()->json();
+            }
+            
+            $currencyRate = $response['rates'][$requestParams['currency']];
         }
         
-        $response = $response->json();
-        $response = (array) $response;
-        
-        if (!is_array($response['rates'])) {
-            return Preacher::msgCode(
-                Preacher::RESP_CODE_FAIL,
-                '汇率接口数据异常'
-            )->export()->json();
-        }
-        
-        if (!isset($requestParams['currency'])) {
-            return Preacher::msgCode(
-                Preacher::RESP_CODE_FAIL,
-                '法币错误或不存在'
-            )->export()->json();
-        }
-        
-        $currencyRate = $response['rates'][$requestParams['currency']];
         $rate = $tokenRate * $currencyRate;
+        
+        $currencyCache = Cache::store(
+            'redis'
+        )->put(
+            $currencyKey,
+            $currencyRate,
+            30
+        );
         
         return Preacher::receipt((object) [
             'rate'     => $rate,
             'currency' => $currencyRate,
             'token'    => $tokenRate,
+            'cache'    => [
+                'currency' => $currencyCache,
+            ],
         ])->export()->json();
     }
     
