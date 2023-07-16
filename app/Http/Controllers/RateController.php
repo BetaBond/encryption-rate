@@ -47,8 +47,8 @@ class RateController
             
             if (!is_array($response->json())) {
                 return Preacher::msgCode(
-                    '48',
-                    Preacher::RESP_CODE_FAIL
+                    Preacher::RESP_CODE_FAIL,
+                    '51'
                 )->export()->json();
             }
             
@@ -57,8 +57,8 @@ class RateController
             
             if (!isset($response['status']) || $response['status'] !== 'ok') {
                 return Preacher::msgCode(
-                    '58',
-                    Preacher::RESP_CODE_FAIL
+                    Preacher::RESP_CODE_FAIL,
+                    '61',
                 )->export()->json();
             }
             
@@ -81,8 +81,8 @@ class RateController
         
         if ($response['code'] !== 0) {
             return Preacher::msgCode(
-                $response['msg'],
-                Preacher::RESP_CODE_FAIL
+                Preacher::RESP_CODE_FAIL,
+                $response['msg']
             )->export()->json();
         }
         
