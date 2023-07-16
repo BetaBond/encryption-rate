@@ -4,9 +4,11 @@ namespace App\Http\Controllers;
 
 use Colorful\Preacher\Preacher;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Request;
 use Illuminate\Validation\Rules\Password;
+use Psr\SimpleCache\InvalidArgumentException;
 
 /**
  * 控制器
@@ -21,7 +23,7 @@ class RateController
      *
      * @var string
      */
-    const LEGAL_TENDER_API = 'https://api.it120.cc/gooking/forex/rate';
+    const LEGAL_TENDER_API = 'https://api.exchangerate-api.com/v4/latest/USD';
     
     const HUOBI_API = 'https://api.huobi.pro/market/detail/merged';
     
@@ -48,7 +50,7 @@ class RateController
             if (!is_array($response->json())) {
                 return Preacher::msgCode(
                     Preacher::RESP_CODE_FAIL,
-                    '51'
+                    '火币接口异常'
                 )->export()->json();
             }
             
@@ -58,36 +60,52 @@ class RateController
             if (!isset($response['status']) || $response['status'] !== 'ok') {
                 return Preacher::msgCode(
                     Preacher::RESP_CODE_FAIL,
-                    '61',
+                    '火币接口数据异常',
                 )->export()->json();
             }
             
             $tokenRate = $response['tick']['close'];
         }
         
-        $response = Http::get(self::LEGAL_TENDER_API, [
-            'fromCode' => strtoupper($requestParams['currency']),
-            'toCode'   => 'USD',
-        ]);
+        $requestParams['currency'] = strtoupper($requestParams['currency']);
+        $currencyKey = $requestParams['currency'].'/USD';
+        
+        try {
+            $has = Cache::store('redis')->has($currencyKey);
+        } catch (InvalidArgumentException $e) {
+            return Preacher::msgCode(
+                Preacher::RESP_CODE_FAIL,
+                $e->getMessage(),
+            )->export()->json();
+        }
+        
+        $response = Http::get(self::LEGAL_TENDER_API);
         
         if (!is_array($response->json())) {
             return Preacher::msgCode(
                 Preacher::RESP_CODE_FAIL,
-                '76'
+                '汇率接口异常'
             )->export()->json();
         }
         
         $response = $response->json();
         $response = (array) $response;
         
-        if ($response['code'] !== 0) {
+        if (!is_array($response['rates'])) {
             return Preacher::msgCode(
                 Preacher::RESP_CODE_FAIL,
-                $response['msg']
+                '汇率接口数据异常'
             )->export()->json();
         }
         
-        $currencyRate = $response['data']['rate'];
+        if (!isset($requestParams['currency'])) {
+            return Preacher::msgCode(
+                Preacher::RESP_CODE_FAIL,
+                '法币错误或不存在'
+            )->export()->json();
+        }
+        
+        $currencyRate = $response['rates'][$requestParams['currency']];
         $rate = $tokenRate * $currencyRate;
         
         return Preacher::receipt((object) [
